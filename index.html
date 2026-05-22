@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UICC APDU Analyzer</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">ETSI / ISO / GlobalPlatform Protocol Analysis</p>
+          <h1>Serious APDU analysis for UICC, eSIM, CAT/USAT, RAM/RFM, and card management logs</h1>
+          <p class="intro">
+            Multi-layer analyzer with contextual command matching, APDU structure validation, CAT/USAT TLV decoding, and deeper
+            GlobalPlatform command interpretation.
+          </p>
+        </div>
+        <div id="summary" class="summary-cards"></div>
+      </section>
+
+      <section class="workspace">
+        <div class="panel input-panel">
+          <div class="panel-header">
+            <h2>APDU Input</h2>
+            <div class="actions">
+              <button id="sample-button" type="button">Load realistic sample</button>
+              <button id="clear-button" type="button">Clear</button>
+              <button id="analyze-button" type="button" class="primary">Analyze</button>
+            </div>
+          </div>
+          <textarea
+            id="apdu-input"
+            spellcheck="false"
+            placeholder="Paste one C-APDU per line. Mixed log lines are supported when a clear APDU byte run is present."
+          ></textarea>
+          <div class="filter-bar">
+            <input id="search-input" type="search" placeholder="Search command, spec area, tag, warning, or raw bytes" />
+            <select id="category-filter"></select>
+            <select id="layer-filter"></select>
+            <label><input id="unknown-only" type="checkbox" /> Unknown only</label>
+            <label><input id="warning-only" type="checkbox" /> Warnings only</label>
+          </div>
+        </div>
+
+        <aside class="panel supported-panel">
+          <div class="panel-header">
+            <h2>Registered Commands</h2>
+          </div>
+          <ul id="supported-commands" class="supported-commands"></ul>
+        </aside>
+      </section>
+
+      <section class="panel results-panel">
+        <div class="panel-header">
+          <h2>Decoded Results</h2>
+          <p>Expandable rows show structure, contextual layer match, decoded fields, and warnings.</p>
+        </div>
+        <div id="results" class="results-list"></div>
+      </section>
+    </main>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

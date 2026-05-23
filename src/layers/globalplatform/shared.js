@@ -2,6 +2,7 @@ import { bytesToHex, bytesToSpacedHex, toHex } from "../../core/hex.js";
 import { field, warning } from "../../core/format.js";
 import { parseBerTlv } from "../../core/tlv.js";
 
+// Source: GlobalPlatform Card Specification command subtype values.
 export const GP_INSTALL_TYPES = {
   0x02: "INSTALL [for load]",
   0x04: "INSTALL [for install]",
@@ -12,6 +13,7 @@ export const GP_INSTALL_TYPES = {
   0x40: "INSTALL [for registry update]",
 };
 
+// Source: GlobalPlatform GET STATUS P1 selector values.
 export const GP_GET_STATUS_P1 = {
   0x80: "Issuer Security Domain",
   0x40: "Application / applet instances",
@@ -19,6 +21,7 @@ export const GP_GET_STATUS_P1 = {
   0x10: "Executable Load File modules",
 };
 
+// Source: GlobalPlatform privilege byte bit assignments.
 const GP_PRIVILEGE_BYTES = [
   [
     [0x80, "Security Domain"],
@@ -48,6 +51,7 @@ const GP_PRIVILEGE_BYTES = [
   ],
 ];
 
+// Source: GlobalPlatform INSTALL parameter TLV tags. Curated subset currently decoded.
 const INSTALL_PARAMETER_TAGS = {
   C6: "Non volatile code space limit",
   C7: "Volatile data space limit",

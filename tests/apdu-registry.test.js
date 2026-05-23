@@ -11,6 +11,7 @@ test("lists commands from all protocol layers", () => {
 
   assert.ok(names.includes("SELECT FILE"));
   assert.ok(names.includes("TERMINAL PROFILE"));
+  assert.ok(names.includes("TERMINAL CAPABILITY"));
   assert.ok(names.includes("INSTALL"));
   assert.ok(names.includes("MANAGE LSI"));
   assert.ok(layers.has("ISO 7816-4 APDU layer"));

@@ -15,8 +15,11 @@ It currently focuses on command APDUs and provides:
 - contextual command matching by `CLA`, `INS`, and spec-layer expectations
 - command-specific decoding for common UICC, CAT/USAT, ETSI remote-management, and GlobalPlatform commands
 - proactive command BER-TLV decoding in FETCH response payloads and standalone proactive templates
+- `SELECT` response decoding for `FCP` / `FCI` / `FMD` templates, including common UICC file-system and application-selection tags
 - `MANAGE LSI` command and response decoding, including `SGP.22` `90` / `91` MEP-related TLVs when visible
 - deeper GlobalPlatform decoding for `INSTALL` parameters, `INITIALIZE UPDATE` response data, and registry-style response payloads
+- `TERMINAL CAPABILITY` decoding with ETSI TS 102 221 `A9` template support
+- GSMA ES10 / eUICC ASN.1 BER-TLV payload recognition so ES10 tags are not confused with CAT proactive data
 - expandable browser UI with filters, search, and warning emphasis
 
 ## Supported protocol layers
@@ -46,6 +49,7 @@ It currently focuses on command APDUs and provides:
 
 - UICC-oriented `STATUS`
 - UICC-oriented `AUTHENTICATE`
+- `TERMINAL CAPABILITY`
 - `MANAGE LSI`
 
 ### 3. ETSI TS 102 223 / 3GPP TS 31.111 CAT/USAT layer
@@ -138,7 +142,9 @@ Each input line is now classified as one of:
 
 - command APDU
 - response APDU
+- `SELECT` response payload (`FCP` / `FCI` / `FMD`)
 - standalone proactive command template
+- GSMA ES10 / eUICC ASN.1 BER-TLV payload
 - generic BER-TLV payload
 - unknown / proprietary payload
 
@@ -205,6 +211,9 @@ This implementation was guided by public standards and public implementation ref
 - [GlobalPlatform Card Specification v2.3](https://globalplatform.org/wp-content/uploads/2018/03/GPC_Specification_v2.3.pdf)
 - [3GPP TS 31.111 overview pages for proactive command structure](https://www.tech-invite.com/3m31/toc/tinv-3gpp-31-111_e.html)
 - [Wireshark ETSI CAT dissector tree](https://gitlab.com/wireshark/wireshark/-/tree/master/epan/dissectors)
+- [Wireshark `packet-gsm_sim.c`](https://github.com/wireshark/wireshark/blob/master/epan/dissectors/packet-gsm_sim.c)
+- [Wireshark `packet-etsi_card_app_toolkit.c`](https://github.com/wireshark/wireshark/blob/master/epan/dissectors/packet-etsi_card_app_toolkit.c)
+- [Android Open Source `Tags.java` eUICC ASN.1 tag mappings](https://android.googlesource.com/platform/packages/apps/Euicc/+/master/libs/apdu/README.md)
 
 These were used as design references, not copied verbatim into the code.
 
@@ -212,12 +221,14 @@ These were used as design references, not copied verbatim into the code.
 
 - Some command payloads are still decoded structurally rather than semantically complete. This is most visible for:
   - terminal profile capability bytes
-  - secure channel cryptograms
-  - parts of GlobalPlatform `PUT KEY`, `LOAD`, and delegated-management receipts
-  - some vendor-specific `MANAGE LSI` extensions beyond ETSI TS 102 221 and public `SGP.22` additions
+- secure channel cryptograms
+- parts of GlobalPlatform `PUT KEY`, `LOAD`, and delegated-management receipts
+- some vendor-specific `MANAGE LSI` extensions beyond ETSI TS 102 221 and public `SGP.22` additions
+- some `SELECT` response nested templates are still decoded structurally rather than with every proprietary sub-tag fully named
 - Response APDUs are now supported, but command/response correlation is not yet stateful. The analyzer does not yet remember the previous `FETCH` command or pair APDU exchanges across multiple lines.
 - The line parser prefers clearly APDU-looking byte runs. Extremely noisy mixed logs may still need preprocessing.
 - CAT proactive command type inference is available only when the command details TLV is visible in the command payload.
+- ES10 ASN.1 structures are recognized and chunk-aware in common `STORE DATA` traffic, but many nested ASN.1 fields are not yet semantically expanded.
 
 ## Run
 

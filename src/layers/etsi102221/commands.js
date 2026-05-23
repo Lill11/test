@@ -1,6 +1,7 @@
 import { field, section, warning } from "../../core/format.js";
 import { addCommonApduSection } from "../shared.js";
 import { decodeManageLsiCommand } from "./manage-lsi.js";
+import { decodeTerminalCapabilityCommand } from "./terminal-capability.js";
 
 function decorate(baseDecode, specArea, extraWarnings = []) {
   return (apdu) => {
@@ -69,6 +70,16 @@ export const ETSI_102221_COMMANDS = [
       },
       "ETSI TS 102 221 / application authentication",
     ),
+  },
+  {
+    id: "etsi102221.terminal-capability",
+    name: "TERMINAL CAPABILITY",
+    layer: "ETSI TS 102 221 UICC layer",
+    category: "UICC-terminal capability exchange",
+    specArea: "ETSI TS 102 221 / terminal capability",
+    summary: "Downloads terminal interface and eUICC capability TLVs before application selection.",
+    match: (apdu) => (apdu.ins.value === 0xaa && (apdu.cla.value & 0x80) === 0x80 ? { score: 96, confidence: "confirmed" } : null),
+    decode: decodeTerminalCapabilityCommand,
   },
   {
     id: "etsi102221.manage-lsi",

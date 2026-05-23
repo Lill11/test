@@ -30,6 +30,47 @@ function decodeLength(bytes, offset) {
   };
 }
 
+export function parseBerTlvPrefix(bytes, offset = 0) {
+  if (offset >= bytes.length) {
+    return { error: "Missing TLV tag byte." };
+  }
+
+  const start = offset;
+  const firstTag = bytes[offset];
+  offset += 1;
+
+  const tagBytes = [firstTag];
+  if ((firstTag & 0x1f) === 0x1f) {
+    while (offset < bytes.length) {
+      const nextTagByte = bytes[offset];
+      tagBytes.push(nextTagByte);
+      offset += 1;
+      if ((nextTagByte & 0x80) === 0) {
+        break;
+      }
+    }
+  }
+
+  const lengthInfo = decodeLength(bytes, offset);
+  if (lengthInfo.error) {
+    return { error: lengthInfo.error, tagBytes, tagHex: bytesToHex(tagBytes) };
+  }
+  offset = lengthInfo.nextOffset;
+  const valueEnd = offset + lengthInfo.value;
+
+  return {
+    startOffset: start,
+    tagBytes,
+    tagHex: bytesToHex(tagBytes),
+    length: lengthInfo.value,
+    encodedLength: tagBytes.length + lengthInfo.encodedLength,
+    valueOffset: offset,
+    availableValueBytes: bytes.slice(offset),
+    isComplete: valueEnd <= bytes.length,
+    missingValueBytes: Math.max(0, valueEnd - bytes.length),
+  };
+}
+
 export function parseBerTlv(bytes, options = {}) {
   const { maxItems = 128 } = options;
   const items = [];

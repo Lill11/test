@@ -5,6 +5,8 @@ import { splitResponseApdu } from "./iso7816/status-words.js";
 import { decodeProactiveCommandTemplate } from "./layers/etsi102223/shared.js";
 import { decodeManageLsiPayload } from "./layers/etsi102221/manage-lsi.js";
 import { decodeGlobalPlatformResponse } from "./layers/globalplatform/responses.js";
+import { decodeEs10Asn1Payload } from "./layers/es10/asn1.js";
+import { decodeSelectResponsePayload } from "./layers/select-response.js";
 
 function decodeGenericBerPayload(bytes, title) {
   const ber = parseBerTlv(bytes);
@@ -55,11 +57,27 @@ export function analyzePayloadLine(bytes) {
     };
   }
 
+  const selectResponse = decodeSelectResponsePayload(bytes);
+  if (selectResponse) {
+    return {
+      kind: "payload",
+      ...selectResponse,
+    };
+  }
+
   const globalPlatform = decodeGlobalPlatformResponse(bytes);
   if (globalPlatform) {
     return {
       kind: "payload",
       ...globalPlatform,
+    };
+  }
+
+  const es10 = decodeEs10Asn1Payload(bytes);
+  if (es10) {
+    return {
+      kind: "payload",
+      ...es10,
     };
   }
 
@@ -120,7 +138,9 @@ export function analyzeResponseLine(bytes) {
 
   const proactive = response.dataBytes.length ? decodeProactiveCommandTemplate(response.dataBytes) : null;
   const manageLsi = response.dataBytes.length ? decodeManageLsiPayload(response.dataBytes) : null;
+  const selectResponse = response.dataBytes.length ? decodeSelectResponsePayload(response.dataBytes) : null;
   const globalPlatform = response.dataBytes.length ? decodeGlobalPlatformResponse(response.dataBytes) : null;
+  const es10 = response.dataBytes.length ? decodeEs10Asn1Payload(response.dataBytes) : null;
   if (proactive) {
     commandName = "FETCH proactive response";
     category = "CAT / USAT response";
@@ -159,6 +179,25 @@ export function analyzeResponseLine(bytes) {
       ...manageLsi.decodedFields,
     };
     warningDetails.push(...manageLsi.warnings);
+  } else if (selectResponse) {
+    commandName = selectResponse.commandName;
+    category = selectResponse.category;
+    layer = selectResponse.layer;
+    shortMeaning = selectResponse.shortMeaning;
+    possibleSpecArea = selectResponse.possibleSpecArea;
+    sections = [
+      section("Response APDU", [
+        field("Response data length", response.dataBytes.length),
+        field("Status word", response.statusWord),
+        field("Status meaning", response.meaning),
+      ]),
+      ...selectResponse.sections,
+    ];
+    decodedFields = {
+      ...decodedFields,
+      ...selectResponse.decodedFields,
+    };
+    warningDetails.push(...selectResponse.warnings);
   } else if (globalPlatform) {
     commandName = globalPlatform.commandName;
     category = globalPlatform.category;
@@ -178,6 +217,25 @@ export function analyzeResponseLine(bytes) {
       ...globalPlatform.decodedFields,
     };
     warningDetails.push(...globalPlatform.warnings);
+  } else if (es10) {
+    commandName = es10.commandName;
+    category = es10.category;
+    layer = es10.layer;
+    shortMeaning = es10.shortMeaning;
+    possibleSpecArea = es10.possibleSpecArea;
+    sections = [
+      section("Response APDU", [
+        field("Response data length", response.dataBytes.length),
+        field("Status word", response.statusWord),
+        field("Status meaning", response.meaning),
+      ]),
+      ...es10.sections,
+    ];
+    decodedFields = {
+      ...decodedFields,
+      ...es10.decodedFields,
+    };
+    warningDetails.push(...es10.warnings);
   } else if (response.dataBytes.length) {
     const ber = parseBerTlv(response.dataBytes);
     if (ber.items.length && ber.isComplete) {
@@ -236,7 +294,7 @@ export function analyzeResponseLine(bytes) {
     commandName,
     category,
     layer,
-    confidence: proactive ? "confirmed" : "possible",
+    confidence: proactive || es10 || selectResponse ? "confirmed" : "possible",
     shortMeaning,
     possibleSpecArea,
     sections,

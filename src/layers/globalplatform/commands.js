@@ -1,6 +1,7 @@
 import { parseBerTlv } from "../../core/tlv.js";
 import { field, section, warning } from "../../core/format.js";
 import { addCommonApduSection, decodeAidList, decodeLengthPrefixedFields } from "../shared.js";
+import { analyzeEs10StoreDataChunk, decodeEs10Asn1Payload } from "../es10/asn1.js";
 import {
   decodeInstallParameters,
   decodeSecurityLevel,
@@ -211,24 +212,53 @@ function decodeSetStatus(apdu) {
 }
 
 function decodeStoreData(apdu) {
-  const tlv = parseBerTlv(apdu.data.bytes);
+  const es10Chunk = analyzeEs10StoreDataChunk(apdu.data.bytes, apdu.p1, apdu.p2);
+  const shouldSkipGenericBer =
+    es10Chunk && (apdu.p2 > 0 || es10Chunk.decodedFields?.es10ChunkState === "Top-level object continues in later chunks");
+  const tlv = shouldSkipGenericBer ? { items: [], warnings: [] } : parseBerTlv(apdu.data.bytes);
+  const es10 = decodeEs10Asn1Payload(apdu.data.bytes);
   const sections = [
     section("GlobalPlatform STORE DATA", [
       field("Data block control", `P1=0x${apdu.p1Hex}`),
       field("Block sequence / mode", `P2=0x${apdu.p2Hex}`),
+      field("Chunk role", es10Chunk?.decodedFields?.storeDataChunkRole || (apdu.p2 === 0 ? "Single block or first block" : `Continuation block #${apdu.p2}`), {
+        certainty: es10Chunk ? "confirmed" : "possible",
+      }),
+      field("Chunk completion", es10Chunk?.decodedFields?.storeDataChunkFinal || (((apdu.p1 & 0x80) !== 0) ? "Final chunk indicated" : "More chunks may follow"), {
+        certainty: "possible",
+      }),
       field("Payload length", apdu.lc ?? 0),
       field("Payload bytes", apdu.data.spacedHex || "None"),
       field("BER-TLV items", tlv.items.length),
+      field("ES10 / eUICC ASN.1 hint", es10 ? es10.decodedFields.firstEs10Tag : "Not recognized", {
+        certainty: es10 ? "confirmed" : "possible",
+      }),
     ]),
   ];
+  if (es10Chunk) {
+    sections.push(...es10Chunk.sections);
+  }
+  if (es10) {
+    sections.push(...es10.sections);
+  }
   addCommonApduSection(apdu, sections);
   return {
     sections,
     warnings: [
       warning("STORE DATA may represent GlobalPlatform personalization, registry update, or delegated management content depending on session context."),
       ...tlv.warnings.map((message) => warning(message)),
+      ...((es10Chunk?.warnings) || []),
+      ...((es10?.warnings) || []),
     ],
-    decodedFields: { dataBlockControl: `0x${apdu.p1Hex}`, blockSequence: `0x${apdu.p2Hex}` },
+    decodedFields: {
+      dataBlockControl: `0x${apdu.p1Hex}`,
+      blockSequence: `0x${apdu.p2Hex}`,
+      firstEs10Tag: es10?.decodedFields.firstEs10Tag || es10Chunk?.decodedFields.firstEs10Tag || "Not recognized",
+      es10Hint: es10?.decodedFields.firstEs10Tag || "Not recognized",
+      storeDataChunkRole: es10Chunk?.decodedFields.storeDataChunkRole || (apdu.p2 === 0 ? "Single block or first block" : `Continuation block #${apdu.p2}`),
+      storeDataChunkFinal: es10Chunk?.decodedFields.storeDataChunkFinal || (((apdu.p1 & 0x80) !== 0) ? "Final chunk indicated" : "More chunks may follow"),
+      es10ChunkState: es10Chunk?.decodedFields.es10ChunkState || "Not identified",
+    },
   };
 }
 

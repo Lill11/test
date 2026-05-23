@@ -172,6 +172,32 @@ export function decodeManageLsiCommand(apdu) {
     ]),
   ];
 
+  if (apdu.p1 === 0x00) {
+    sections.push(
+      section("Select LSI semantics", [
+        field("Selected LSI", apdu.p2, {
+          certainty: "confirmed",
+        }),
+        field(
+          "Protocol meaning",
+          apdu.p2 === 0x00
+            ? "Select LSI 0. At the beginning of a card session, LSI 0 is already selected by default."
+            : `Select LSI ${apdu.p2}. Subsequent APDUs are handled by the LSE on this LSI until another MANAGE LSI or interface reset.`,
+          {
+            certainty: "confirmed",
+          },
+        ),
+        field(
+          "Reset comparison",
+          "ETSI TS 102 221 defines Reset LSE as P1=0x01 with Le=0x00. P1=0x00 is still Select LSI, even if a trailing 00 byte is present.",
+          {
+            certainty: "possible",
+          },
+        ),
+      ]),
+    );
+  }
+
   if (apdu.p1 === 0x04) {
     if (apdu.p2 !== 0x00) {
       warnings.push(warning("Configure LSIs expects P2=0x00 per ETSI TS 102 221; this APDU uses a different value."));
@@ -197,7 +223,13 @@ export function decodeManageLsiCommand(apdu) {
   }
 
   if (apdu.p1 === 0x00 && (apdu.lc !== null || apdu.le !== null)) {
-    warnings.push(warning("Select LSI normally omits both Lc and Le."));
+    warnings.push(
+      warning(
+        (apdu.caseType === "case2s" && apdu.le === 256) || apdu.le === 0
+          ? "P1=0x00 is ETSI Select LSI, but this APDU includes Le=0x00. If the intent was Reset LSE on this LSI, ETSI TS 102 221 uses P1=0x01; otherwise this is a non-canonical Select LSI encoding."
+          : "Select LSI normally omits both Lc and Le.",
+      ),
+    );
   }
 
   addCommonApduSection(apdu, sections);

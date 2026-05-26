@@ -493,3 +493,100 @@ test("decodes GlobalPlatform registry-style BER-TLV responses", () => {
   assert.equal(result.decodedFields.firstEntryAid, "A0000001");
   assert.match(result.decodedFields.firstEntryPrivileges, /Security Domain/i);
 });
+
+test("decodes GET DATA CPLC response using previous command context", () => {
+  const results = parseApduText(`
+80 CA 9F 7F 00
+47905075479120813B009FE0000100000150B4F8001A9000
+`);
+
+  assert.equal(results.length, 2);
+  assert.equal(results[0].commandName, "GET DATA");
+  assert.equal(results[1].kind, "response-apdu");
+  assert.equal(results[1].commandName, "GET DATA response");
+  assert.equal(results[1].decodedFields.getDataTagReference, "0x9F7F");
+  assert.equal(results[1].decodedFields.getDataObjectName, "CPLC data");
+  assert.equal(results[1].decodedFields.icFabricator, "4790");
+  assert.equal(results[1].decodedFields.icType, "5075");
+});
+
+test("decodes GlobalPlatform Card Recognition Data response using previous command context", () => {
+  const results = parseApduText(`
+80 CA 00 66 00
+660C730A06082A864886FC6B01029000
+`);
+
+  assert.equal(results.length, 2);
+  assert.equal(results[1].commandName, "GET DATA response");
+  assert.equal(results[1].decodedFields.getDataTagReference, "0x0066");
+  assert.equal(results[1].decodedFields.getDataObjectName, "Card data / Card Recognition Data");
+  assert.equal(results[1].decodedFields.cardRecognitionOid, "1.2.840.114283.1.2");
+});
+
+test("marks ambiguous BER-TLV payload as potential GET DATA response when no command context exists", () => {
+  const result = parseApduLine("660C730A06082A864886FC6B0102", 34);
+
+  assert.equal(result.kind, "payload");
+  assert.match(result.commandName, /Potential GET DATA response/i);
+  assert.match(result.shortMeaning, /context required/i);
+});
+
+test("decodes GET DATA FF21 response using previous command context without guessing unknown inner tags", () => {
+  const results = parseApduText(`
+80 CA FF 21 00
+FF 21 0C 45 02 3F A0 46 02 08 00 C8 02 10 00 90 00
+`);
+
+  assert.equal(results.length, 2);
+  assert.equal(results[1].commandName, "GET DATA response");
+  assert.equal(results[1].decodedFields.getDataTagReference, "0xFF21");
+  assert.equal(results[1].decodedFields.getDataObjectName, "Extended Card Resources Information");
+  assert.equal(results[1].decodedFields.statusWord, "9000");
+  assert.match(results[1].warnings.join(" "), /not the standard ETSI 102 226 81\/82\/83 set/i);
+  const values = results[1].sections.flatMap((sectionItem) => sectionItem.fields.map((currentField) => `${currentField.label}:${currentField.value}`));
+  assert.ok(values.some((value) => value.includes("Inner tag 45 TLV:45 02 3F A0")));
+  assert.ok(values.some((value) => value.includes("Inner tag 46 TLV:46 02 08 00")));
+  assert.ok(values.some((value) => value.includes("Inner tag C8 TLV:C8 02 10 00")));
+});
+
+test("decodes standard FF21 extended card resources information values", () => {
+  const results = parseApduText(`
+80 CA FF 21 00
+FF 21 0B 81 01 05 82 02 20 00 83 02 08 00 90 00
+`);
+
+  assert.equal(results.length, 2);
+  assert.equal(results[1].commandName, "GET DATA response");
+  assert.equal(results[1].decodedFields.getDataTagReference, "0xFF21");
+  assert.equal(results[1].decodedFields.getDataObjectName, "Extended Card Resources Information");
+  assert.equal(results[1].decodedFields.installedApplications, 5);
+  assert.equal(results[1].decodedFields.freeNonVolatileMemory, 8192);
+  assert.equal(results[1].decodedFields.freeVolatileMemory, 2048);
+  assert.equal(results[1].warnings.length, 0);
+  const values = results[1].sections.flatMap((sectionItem) => sectionItem.fields.map((currentField) => `${currentField.label}:${currentField.value}`));
+  assert.ok(values.some((value) => value.includes("Number of installed applications:5")));
+  assert.ok(values.some((value) => value.includes("Free non volatile memory:8192 byte(s)")));
+  assert.ok(values.some((value) => value.includes("Free volatile memory:2048 byte(s)")));
+});
+
+test("decodes standalone canonical FF21 response without explicit GET DATA command context", () => {
+  const result = parseApduLine("FF 21 0B 81 01 05 82 02 20 00 83 02 08 00 90 00", 35);
+
+  assert.equal(result.kind, "response-apdu");
+  assert.equal(result.commandName, "GET DATA response");
+  assert.equal(result.layer, "Context-inferred GET DATA response layer");
+  assert.equal(result.decodedFields.getDataTagReference, "0xFF21");
+  assert.equal(result.decodedFields.installedApplications, 5);
+  assert.equal(result.decodedFields.freeNonVolatileMemory, 8192);
+  assert.equal(result.decodedFields.freeVolatileMemory, 2048);
+  assert.equal(result.warnings.length, 0);
+});
+
+test("treats standalone FF21 payload as potential GET DATA response when no command context exists", () => {
+  const result = parseApduLine("FF 21 0C 45 02 3F A0 46 02 08 00 C8 02 10 00 90 00", 36);
+
+  assert.equal(result.kind, "response-apdu");
+  assert.match(result.commandName, /Potential GET DATA response/i);
+  assert.equal(result.decodedFields.potentialGetDataTopTag, "0xFF21");
+  assert.match(result.shortMeaning, /context required/i);
+});

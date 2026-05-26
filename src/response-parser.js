@@ -7,6 +7,7 @@ import { decodeManageLsiPayload } from "./layers/etsi102221/manage-lsi.js";
 import { decodeGlobalPlatformResponse } from "./layers/globalplatform/responses.js";
 import { decodeEs10Asn1Payload } from "./layers/es10/asn1.js";
 import { decodeSelectResponsePayload } from "./layers/select-response.js";
+import { decodeGetDataResponse, decodePotentialGetDataPayload } from "./layers/get-data-response.js";
 
 function decodeGenericBerPayload(bytes, title) {
   const ber = parseBerTlv(bytes);
@@ -32,7 +33,15 @@ function decodeGenericBerPayload(bytes, title) {
   };
 }
 
-export function analyzePayloadLine(bytes) {
+export function analyzePayloadLine(bytes, context = {}) {
+  const getData = decodeGetDataResponse(bytes, context.previousCommandContext);
+  if (getData) {
+    return {
+      kind: "payload",
+      ...getData,
+    };
+  }
+
   const proactive = decodeProactiveCommandTemplate(bytes);
   if (proactive) {
     return {
@@ -81,6 +90,14 @@ export function analyzePayloadLine(bytes) {
     };
   }
 
+  const potentialGetData = decodePotentialGetDataPayload(bytes);
+  if (potentialGetData) {
+    return {
+      kind: "payload",
+      ...potentialGetData,
+    };
+  }
+
   const ber = parseBerTlv(bytes);
   if (ber.items.length && ber.isComplete) {
     const decoded = decodeGenericBerPayload(bytes, "BER-TLV payload");
@@ -117,7 +134,7 @@ export function analyzePayloadLine(bytes) {
   };
 }
 
-export function analyzeResponseLine(bytes) {
+export function analyzeResponseLine(bytes, context = {}) {
   const response = splitResponseApdu(bytes);
   if (!response) {
     return null;
@@ -139,6 +156,7 @@ export function analyzeResponseLine(bytes) {
   const proactive = response.dataBytes.length ? decodeProactiveCommandTemplate(response.dataBytes) : null;
   const manageLsi = response.dataBytes.length ? decodeManageLsiPayload(response.dataBytes) : null;
   const selectResponse = response.dataBytes.length ? decodeSelectResponsePayload(response.dataBytes) : null;
+  const getData = response.dataBytes.length ? decodeGetDataResponse(response.dataBytes, context.previousCommandContext) : null;
   const globalPlatform = response.dataBytes.length ? decodeGlobalPlatformResponse(response.dataBytes) : null;
   const es10 = response.dataBytes.length ? decodeEs10Asn1Payload(response.dataBytes) : null;
   if (proactive) {
@@ -195,6 +213,24 @@ export function analyzeResponseLine(bytes) {
       ...selectResponse.decodedFields,
     };
     warningDetails.push(...selectResponse.warnings);
+  } else if (getData) {
+    commandName = getData.commandName;
+    category = getData.category;
+    layer = getData.layer;
+    shortMeaning = getData.shortMeaning;
+    possibleSpecArea = getData.possibleSpecArea;
+    sections = [
+      section("Response APDU", [
+        field("Response data length", response.dataBytes.length),
+        field("Status meaning", response.meaning),
+      ]),
+      ...getData.sections,
+    ];
+    decodedFields = {
+      ...decodedFields,
+      ...getData.decodedFields,
+    };
+    warningDetails.push(...getData.warnings);
   } else if (globalPlatform) {
     commandName = globalPlatform.commandName;
     category = globalPlatform.category;
@@ -232,38 +268,59 @@ export function analyzeResponseLine(bytes) {
     };
     warningDetails.push(...es10.warnings);
   } else if (response.dataBytes.length) {
-    const ber = parseBerTlv(response.dataBytes);
-    if (ber.items.length && ber.isComplete) {
-      const decoded = decodeGenericBerPayload(response.dataBytes, "Response payload");
-      commandName = "Response APDU with BER-TLV payload";
-      category = "Structured response";
-      layer = "Generic response decoder layer";
-      shortMeaning = "Response APDU containing a BER-TLV payload.";
-      possibleSpecArea = "Generic BER-TLV response payload";
+    const potentialGetData = decodePotentialGetDataPayload(response.dataBytes);
+    if (potentialGetData) {
+      commandName = potentialGetData.commandName;
+      category = potentialGetData.category;
+      layer = potentialGetData.layer;
+      shortMeaning = potentialGetData.shortMeaning;
+      possibleSpecArea = potentialGetData.possibleSpecArea;
       sections = [
         section("Response APDU", [
           field("Response data length", response.dataBytes.length),
           field("Status meaning", response.meaning),
         ]),
-        ...decoded.sections,
+        ...potentialGetData.sections,
       ];
       decodedFields = {
         ...decodedFields,
-        ...decoded.decodedFields,
+        ...potentialGetData.decodedFields,
       };
-      warningDetails.push(...decoded.warnings);
+      warningDetails.push(...potentialGetData.warnings);
     } else {
-      sections = [
-        section("Response APDU", [
-          field("Response data length", response.dataBytes.length),
-          field("Response data bytes", bytesToSpacedHex(response.dataBytes)),
-          field("Status word", response.statusWord),
-          field("Status meaning", response.meaning),
-        ]),
-      ];
-      warningDetails.push(
-        warning("Response payload is not yet decoded structurally; raw bytes and status word are shown.", "warning"),
-      );
+      const ber = parseBerTlv(response.dataBytes);
+      if (ber.items.length && ber.isComplete) {
+        const decoded = decodeGenericBerPayload(response.dataBytes, "Response payload");
+        commandName = "Response APDU with BER-TLV payload";
+        category = "Structured response";
+        layer = "Generic response decoder layer";
+        shortMeaning = "Response APDU containing a BER-TLV payload.";
+        possibleSpecArea = "Generic BER-TLV response payload";
+        sections = [
+          section("Response APDU", [
+            field("Response data length", response.dataBytes.length),
+            field("Status meaning", response.meaning),
+          ]),
+          ...decoded.sections,
+        ];
+        decodedFields = {
+          ...decodedFields,
+          ...decoded.decodedFields,
+        };
+        warningDetails.push(...decoded.warnings);
+      } else {
+        sections = [
+          section("Response APDU", [
+            field("Response data length", response.dataBytes.length),
+            field("Response data bytes", bytesToSpacedHex(response.dataBytes)),
+            field("Status word", response.statusWord),
+            field("Status meaning", response.meaning),
+          ]),
+        ];
+        warningDetails.push(
+          warning("Response payload is not yet decoded structurally; raw bytes and status word are shown.", "warning"),
+        );
+      }
     }
   } else {
     sections = [

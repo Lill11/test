@@ -3,6 +3,7 @@ import { warning } from "./core/format.js";
 import { parseCommandApdu } from "./iso7816/apdu-structure.js";
 import { analyzeCommand } from "./layers/index.js";
 import { analyzePayloadLine, analyzeResponseLine } from "./response-parser.js";
+import { createCommandContext } from "./layers/get-data-response.js";
 
 function buildErrorResult(lineNumber, rawApdu, message, extraWarnings = []) {
   return {
@@ -25,7 +26,7 @@ function buildErrorResult(lineNumber, rawApdu, message, extraWarnings = []) {
   };
 }
 
-export function parseApduLine(rawLine, lineNumber) {
+export function parseApduLine(rawLine, lineNumber, context = {}) {
   const trimmed = rawLine.trim();
   if (!trimmed) {
     return null;
@@ -41,7 +42,7 @@ export function parseApduLine(rawLine, lineNumber) {
     return buildErrorResult(lineNumber, trimmed, "At least one byte pair is required to analyze this line.", extractionWarnings);
   }
 
-  const responseAnalysis = analyzeResponseLine(bytes);
+  const responseAnalysis = analyzeResponseLine(bytes, context);
   if (responseAnalysis?.responseData?.bytes?.[0] === 0xd0 || (responseAnalysis && bytes.length <= 2)) {
     return {
       lineNumber,
@@ -69,7 +70,7 @@ export function parseApduLine(rawLine, lineNumber) {
     };
   }
 
-  const payloadAnalysis = analyzePayloadLine(bytes);
+  const payloadAnalysis = analyzePayloadLine(bytes, context);
   if ((!parsedApdu || !parsedApdu.ok || commandAnalysis?.commandName === "Unknown") && payloadAnalysis.commandName !== "Unknown payload") {
     return {
       lineNumber,
@@ -148,8 +149,19 @@ export function parseApduLine(rawLine, lineNumber) {
 }
 
 export function parseApduText(sourceText) {
-  return sourceText
-    .split(/\r?\n/)
-    .map((line, index) => parseApduLine(line, index + 1))
-    .filter(Boolean);
+  const results = [];
+  let previousCommandContext = null;
+  sourceText.split(/\r?\n/).forEach((line, index) => {
+    const result = parseApduLine(line, index + 1, { previousCommandContext });
+    if (!result) {
+      return;
+    }
+    results.push(result);
+    if (result.kind === "command-apdu") {
+      previousCommandContext = createCommandContext(result);
+    } else if (previousCommandContext) {
+      previousCommandContext = null;
+    }
+  });
+  return results;
 }

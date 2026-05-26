@@ -123,7 +123,7 @@ export function analyzeResponseLine(bytes) {
     return null;
   }
 
-  const warningDetails = [warning(response.meaning, response.severity === "ok" ? "info" : response.severity)];
+  const warningDetails = response.severity === "warning" || response.severity === "error" ? [warning(response.meaning, response.severity)] : [];
   let commandName = "Response APDU";
   let category = "Response";
   let layer = "ISO 7816-4 response layer";
@@ -150,7 +150,6 @@ export function analyzeResponseLine(bytes) {
     sections = [
       section("Response APDU", [
         field("Response data length", response.dataBytes.length),
-        field("Status word", response.statusWord),
         field("Status meaning", response.meaning),
       ]),
       ...proactive.sections,
@@ -169,7 +168,6 @@ export function analyzeResponseLine(bytes) {
     sections = [
       section("Response APDU", [
         field("Response data length", response.dataBytes.length),
-        field("Status word", response.statusWord),
         field("Status meaning", response.meaning),
       ]),
       ...manageLsi.sections,
@@ -188,7 +186,6 @@ export function analyzeResponseLine(bytes) {
     sections = [
       section("Response APDU", [
         field("Response data length", response.dataBytes.length),
-        field("Status word", response.statusWord),
         field("Status meaning", response.meaning),
       ]),
       ...selectResponse.sections,
@@ -207,7 +204,6 @@ export function analyzeResponseLine(bytes) {
     sections = [
       section("Response APDU", [
         field("Response data length", response.dataBytes.length),
-        field("Status word", response.statusWord),
         field("Status meaning", response.meaning),
       ]),
       ...globalPlatform.sections,
@@ -226,7 +222,6 @@ export function analyzeResponseLine(bytes) {
     sections = [
       section("Response APDU", [
         field("Response data length", response.dataBytes.length),
-        field("Status word", response.statusWord),
         field("Status meaning", response.meaning),
       ]),
       ...es10.sections,
@@ -248,7 +243,6 @@ export function analyzeResponseLine(bytes) {
       sections = [
         section("Response APDU", [
           field("Response data length", response.dataBytes.length),
-          field("Status word", response.statusWord),
           field("Status meaning", response.meaning),
         ]),
         ...decoded.sections,

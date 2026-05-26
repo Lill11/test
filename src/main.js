@@ -135,25 +135,115 @@ function renderWarningBadges(result) {
     .join("");
 }
 
+function fieldTier(currentField) {
+  const label = String(currentField.label || "").toLowerCase();
+  if (/standard reference|standard table|context family|identified layer|note|hint|category/.test(label)) {
+    return "advanced";
+  }
+  if (/tlv|raw|byte|bytes|value|tag|length|payload|status word|response data length|sequence|scope|control|identifier/.test(label)) {
+    return "raw";
+  }
+  return "decoded";
+}
+
+function shouldDropField(currentField, allFields) {
+  const label = String(currentField.label || "");
+  const value = formatValue(currentField.value);
+  if (!value || value === "—") {
+    return false;
+  }
+
+  if (/behavior category/i.test(label)) {
+    return true;
+  }
+
+  const duplicateSemanticLabels = [
+    /refresh mode/i,
+    /requested local information/i,
+    /browser launch mode/i,
+    /call setup mode/i,
+    /sms packing requirement/i,
+    /vibrate behavior/i,
+    /receive data qualifier meaning/i,
+    /send data mode/i,
+    /open channel mode/i,
+  ];
+
+  if (duplicateSemanticLabels.some((pattern) => pattern.test(label))) {
+    return true;
+  }
+
+  if (/status meaning/i.test(label) && allFields.some((entry) => /status word/i.test(entry.label || ""))) {
+    return false;
+  }
+
+  return false;
+}
+
+function compactSectionFields(fields) {
+  const seen = new Set();
+  return safeArray(fields).filter((currentField) => {
+    if (shouldDropField(currentField, fields)) {
+      return false;
+    }
+    const dedupeKey = `${String(currentField.label || "").toLowerCase()}::${formatValue(currentField.value)}`;
+    if (seen.has(dedupeKey)) {
+      return false;
+    }
+    seen.add(dedupeKey);
+    return true;
+  });
+}
+
+function renderFieldCards(fields) {
+  return fields
+    .map(
+      (currentField) => `
+        <div class="field-card ${escapeHtml(currentField.certainty || "confirmed")}">
+          <span>${escapeHtml(currentField.label)}</span>
+          <strong>${escapeHtml(formatValue(currentField.value))}</strong>
+          ${currentField.note ? `<small>${escapeHtml(currentField.note)}</small>` : ""}
+        </div>
+      `,
+    )
+    .join("");
+}
+
+function renderFieldTier(title, fields) {
+  if (!fields.length) {
+    return "";
+  }
+  return `
+    <div class="detail-subgroup">
+      <h5>${escapeHtml(title)}</h5>
+      <div class="detail-grid">
+        ${renderFieldCards(fields)}
+      </div>
+    </div>
+  `;
+}
+
 function renderSections(result) {
   return safeArray(result.sections)
     .map(
       (currentSection) => `
         <section class="detail-section">
           <h4>${escapeHtml(currentSection.title)}</h4>
-          <div class="detail-grid">
-            ${currentSection.fields
-              .map(
-                (currentField) => `
-                  <div class="field-card ${escapeHtml(currentField.certainty || "confirmed")}">
-                    <span>${escapeHtml(currentField.label)}</span>
-                    <strong>${escapeHtml(formatValue(currentField.value))}</strong>
-                    ${currentField.note ? `<small>${escapeHtml(currentField.note)}</small>` : ""}
-                  </div>
-                `,
-              )
-              .join("")}
-          </div>
+          ${(() => {
+            const compactFields = compactSectionFields(currentSection.fields);
+            const rawFields = compactFields.filter((entry) => fieldTier(entry) === "raw");
+            const decodedFields = compactFields.filter((entry) => fieldTier(entry) === "decoded");
+            const advancedFields = compactFields.filter((entry) => fieldTier(entry) === "advanced");
+            const useGroups = [rawFields, decodedFields, advancedFields].filter((entry) => entry.length).length > 1;
+            if (!useGroups) {
+              return `<div class="detail-grid">${renderFieldCards(compactFields)}</div>`;
+            }
+            return `
+              ${renderFieldTier("Raw", rawFields)}
+              ${renderFieldTier("Decoded", decodedFields)}
+              ${renderFieldTier("Advanced", advancedFields)}
+            `;
+          })()}
         </section>
       `,
     )

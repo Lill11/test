@@ -27,7 +27,7 @@ Focused coverage review against ETSI TS 102 221, ETSI TS 102 223, ISO/IEC 7816-4
 | `TERMINAL RESPONSE` | ETSI TS 102 223 / 3GPP TS 31.111 | Yes | Yes |
 | CAT TLVs: `Command Details`, `Device Identities`, `Result`, `Duration`, `Alpha Identifier`, `Address`, `Text String`, `Item`, `File List`, `Channel Data`, `Bearer Description` | ETSI TS 102 223 / Wireshark CAT dissector | Yes | Existing |
 | CAT TLVs: `USSD String`, `Default Text`, `Icon Identifier`, `Browser Identity`, `URL`, `Buffer Size`, `File Update Information`, `Channel Status` | ETSI TS 102 223 / Wireshark CAT dissector | Yes | Regression via parser path |
-| Proactive command types: `REFRESH`, `POLL INTERVAL`, `OPEN/CLOSE CHANNEL`, `SEND/RECEIVE DATA`, `GET CHANNEL STATUS`, `PROVIDE LOCAL INFORMATION`, `SET UP MENU`, `DISPLAY TEXT`, `GET INPUT` | ETSI TS 102 223 / Wireshark CAT dissector | Yes | Partial |
+| Proactive command types: `REFRESH`, `POLL INTERVAL`, `OPEN/CLOSE CHANNEL`, `SEND/RECEIVE DATA`, `GET CHANNEL STATUS`, `PROVIDE LOCAL INFORMATION`, `SET UP MENU`, `DISPLAY TEXT`, `GET INPUT`, `RUN AT COMMAND (0x34)`, `LANGUAGE NOTIFICATION (0x35)`, `SET FRAMES (0x50)`, `GET FRAMES STATUS (0x51)`, `ACTIVATE (0x70)`, `CONTACTLESS STATE CHANGED (0x71)`, `COMMAND CONTAINER (0x72)`, `ENCAPSULATED SESSION CONTROL (0x73)`, `LSI Command / Manage LSI (0x79)` | ETSI TS 102 223 Release 17 baseline / Wireshark CAT dissector | Yes | Partial |
 | `INSTALL`, `LOAD`, `DELETE`, `PUT KEY`, `INITIALIZE UPDATE`, `EXTERNAL AUTHENTICATE`, `GET STATUS`, `STORE DATA`, `SET STATUS` | GlobalPlatform | Yes | Yes / partial |
 | `INITIALIZE UPDATE` response | GlobalPlatform | Yes | Yes |
 | `GET STATUS` registry BER-TLV response | GlobalPlatform | Yes | Yes |

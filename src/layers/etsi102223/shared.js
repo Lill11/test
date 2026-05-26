@@ -1,44 +1,64 @@
 import { parseBerTlv, parseCatTlv } from "../../core/tlv.js";
 import { field, section, warning } from "../../core/format.js";
 import { addCommonApduSection } from "../shared.js";
+import { getBaselineLabel } from "../../standards-baseline.js";
 
-export const proactiveCommandTypes = {
-  0x01: "REFRESH",
-  0x02: "MORE TIME",
-  0x03: "POLL INTERVAL",
-  0x04: "POLLING OFF",
-  0x05: "SET UP EVENT LIST",
-  0x10: "SET UP CALL",
-  0x11: "SEND SS",
-  0x12: "SEND USSD",
-  0x13: "SEND SHORT MESSAGE",
-  0x14: "SEND DTMF",
-  0x15: "LAUNCH BROWSER",
-  0x20: "PLAY TONE",
-  0x21: "DISPLAY TEXT",
-  0x22: "GET INKEY",
-  0x23: "GET INPUT",
-  0x24: "SELECT ITEM",
-  0x25: "SET UP MENU",
-  0x26: "PROVIDE LOCAL INFORMATION",
-  0x27: "TIMER MANAGEMENT",
-  0x28: "SET UP IDLE MODE TEXT",
-  0x30: "PERFORM CARD APDU",
-  0x31: "POWER ON CARD",
-  0x32: "POWER OFF CARD",
-  0x33: "GET READER STATUS",
-  0x40: "OPEN CHANNEL",
-  0x41: "CLOSE CHANNEL",
-  0x42: "RECEIVE DATA",
-  0x43: "SEND DATA",
-  0x44: "GET CHANNEL STATUS",
-  0x45: "SERVICE SEARCH",
-  0x46: "GET SERVICE INFORMATION",
-  0x47: "DECLARE SERVICE",
-  0x60: "RETRIEVE MULTIMEDIA MESSAGE",
-  0x61: "SUBMIT MULTIMEDIA MESSAGE",
-  0x62: "DISPLAY MULTIMEDIA MESSAGE",
+// Source baseline: ETSI TS 102 223 Release 17 proactive command tables, project-pinned
+// to the V17.3.0 baseline. Entries are added only when confirmed by the standards/Wireshark.
+const proactiveCommandCatalog = {
+  0x01: { name: "REFRESH" },
+  0x02: { name: "MORE TIME" },
+  0x03: { name: "POLL INTERVAL" },
+  0x04: { name: "POLLING OFF" },
+  0x05: { name: "SET UP EVENT LIST" },
+  0x10: { name: "SET UP CALL" },
+  0x11: { name: "SEND SS" },
+  0x12: { name: "SEND USSD" },
+  0x13: { name: "SEND SHORT MESSAGE" },
+  0x14: { name: "SEND DTMF" },
+  0x15: { name: "LAUNCH BROWSER" },
+  0x20: { name: "PLAY TONE" },
+  0x21: { name: "DISPLAY TEXT" },
+  0x22: { name: "GET INKEY" },
+  0x23: { name: "GET INPUT" },
+  0x24: { name: "SELECT ITEM" },
+  0x25: { name: "SET UP MENU" },
+  0x26: { name: "PROVIDE LOCAL INFORMATION" },
+  0x27: { name: "TIMER MANAGEMENT" },
+  0x28: { name: "SET UP IDLE MODE TEXT" },
+  0x30: { name: "PERFORM CARD APDU" },
+  0x31: { name: "POWER ON CARD" },
+  0x32: { name: "POWER OFF CARD" },
+  0x33: { name: "GET READER STATUS" },
+  0x34: { name: "RUN AT COMMAND" },
+  0x35: { name: "LANGUAGE NOTIFICATION" },
+  0x40: { name: "OPEN CHANNEL" },
+  0x41: { name: "CLOSE CHANNEL" },
+  0x42: { name: "RECEIVE DATA" },
+  0x43: { name: "SEND DATA" },
+  0x44: { name: "GET CHANNEL STATUS" },
+  0x45: { name: "SERVICE SEARCH" },
+  0x46: { name: "GET SERVICE INFORMATION" },
+  0x47: { name: "DECLARE SERVICE" },
+  0x50: { name: "SET FRAMES" },
+  0x51: { name: "GET FRAMES STATUS" },
+  0x60: { name: "RETRIEVE MULTIMEDIA MESSAGE" },
+  0x61: { name: "SUBMIT MULTIMEDIA MESSAGE" },
+  0x62: { name: "DISPLAY MULTIMEDIA MESSAGE" },
+  0x70: { name: "ACTIVATE" },
+  0x71: { name: "CONTACTLESS STATE CHANGED" },
+  0x72: { name: "COMMAND CONTAINER" },
+  0x73: { name: "ENCAPSULATED SESSION CONTROL" },
+  0x79: {
+    name: "LSI Command / Manage LSI",
+    supportedSince: "ETSI TS 102 223 V17.3.0 Release 17 baseline",
+    note: "Release 17 CAT/eUICC LSI command family; older proactive-command tables may not contain 0x79.",
+  },
 };
+
+export const proactiveCommandTypes = Object.fromEntries(
+  Object.entries(proactiveCommandCatalog).map(([key, value]) => [Number(key), value.name]),
+);
 
 export const catTagNames = {
   0x01: "Command details",
@@ -126,14 +146,31 @@ const proactiveQualifierReferences = {
   0x23: "ETSI TS 102 223 clause 8.6 / 6.4.3 GET INPUT",
   0x26: "ETSI TS 102 223 clause 8.6 / 6.4.15 PROVIDE LOCAL INFORMATION",
   0x27: "ETSI TS 102 223 clause 8.6 / 6.4.21 TIMER MANAGEMENT",
+  0x34: "ETSI TS 102 223 proactive command table / Wireshark RUN AT COMMAND entry",
+  0x35: "ETSI TS 102 223 proactive command table / Wireshark LANGUAGE NOTIFICATION entry",
   0x40: "ETSI TS 102 223 clause 8.6 / 6.4.27 OPEN CHANNEL",
   0x41: "ETSI TS 102 223 clause 8.6 / 6.4.28 CLOSE CHANNEL",
   0x42: "ETSI TS 102 223 clause 8.6 / 6.4.29 RECEIVE DATA",
   0x43: "ETSI TS 102 223 clause 8.6 / 6.4.30 SEND DATA",
+  0x50: "ETSI TS 102 223 proactive command table / Wireshark SET FRAMES entry",
+  0x51: "ETSI TS 102 223 proactive command table / Wireshark GET FRAMES STATUS entry",
+  0x70: "ETSI TS 102 223 proactive command table / Wireshark ACTIVATE entry",
+  0x71: "ETSI TS 102 223 proactive command table / Wireshark CONTACTLESS STATE CHANGED entry",
+  0x72: "ETSI TS 102 223 proactive command table / Wireshark COMMAND CONTAINER entry",
+  0x73: "ETSI TS 102 223 proactive command table / Wireshark ENCAPSULATED SESSION CONTROL entry",
+  0x79: "ETSI TS 102 223 V17.3.0 Release 17 LSI COMMAND / Manage LSI baseline",
 };
 
 function formatQualifierHex(value) {
   return `0x${value.toString(16).toUpperCase().padStart(2, "0")}`;
+}
+
+function formatCommandTypeHex(value) {
+  return `0x${value.toString(16).toUpperCase().padStart(2, "0")}`;
+}
+
+function formatProactiveCommandTypeDisplay(typeOfCommand, commandName) {
+  return `${formatCommandTypeHex(typeOfCommand)} — ${commandName}`;
 }
 
 function warnReservedBits(value, allowedMask, label = "Reserved qualifier bits are set.") {
@@ -198,12 +235,7 @@ function decodeRefreshQualifier(qualifier) {
   return {
     meaning: matched ? matched.meaning : `Reserved / unsupported REFRESH mode ${formatQualifierHex(qualifier)}`,
     category: matched ? matched.category : "Reserved REFRESH qualifier value",
-    fields: matched
-      ? [
-          field("REFRESH mode", matched.meaning, { certainty: "confirmed" }),
-          field("REFRESH behavior category", matched.category, { certainty: "confirmed" }),
-        ]
-      : [],
+    fields: [],
     warnings: matched ? [] : [`REFRESH qualifier ${formatQualifierHex(qualifier)} is reserved or not yet mapped.`],
   };
 }
@@ -221,9 +253,6 @@ function decodeOpenChannelQualifier(qualifier) {
         : "On-demand link establishment",
     category: backgroundMode ? "BIP channel setup in background mode" : "BIP channel setup",
     fields: [
-      field("OPEN CHANNEL mode", backgroundMode ? "Immediate link establishment in background mode" : immediate ? "Immediate link establishment" : "On-demand link establishment", {
-        certainty: "confirmed",
-      }),
       field("Automatic reconnection", autoReconnect ? "requested" : "not requested", { certainty: "confirmed" }),
       field("Background mode", backgroundMode ? "requested" : "not requested", { certainty: "confirmed" }),
       field("DNS server address request", dnsRequested ? "requested" : "not requested", {
@@ -259,9 +288,7 @@ function decodeSendDataQualifier(qualifier) {
   return {
     meaning: bitState(qualifier, 1) ? "Send data immediately" : "Store data in Tx buffer",
     category: "BIP transmit behavior",
-    fields: [
-      field("SEND DATA mode", bitState(qualifier, 1) ? "Send immediately" : "Store in Tx buffer", { certainty: "confirmed" }),
-    ],
+    fields: [],
     warnings: warnReservedBits(qualifier, 0x01, "SEND DATA qualifier has RFU bits 2-8 set."),
   };
 }
@@ -270,11 +297,7 @@ function decodeReceiveDataQualifier(qualifier) {
   return {
     meaning: qualifier === 0x00 ? "No qualifier semantics defined" : "Qualifier should normally be zero (RFU).",
     category: "Receive data request",
-    fields: [
-      field("RECEIVE DATA qualifier meaning", qualifier === 0x00 ? "RFU byte correctly set to 0" : "Non-zero qualifier in RFU field", {
-        certainty: qualifier === 0x00 ? "confirmed" : "possible",
-      }),
-    ],
+    fields: [],
     warnings: qualifier === 0x00 ? [] : ["RECEIVE DATA qualifier is RFU and should normally be 0x00."],
   };
 }
@@ -375,7 +398,7 @@ function decodeProvideLocalInformationQualifier(qualifier) {
   return {
     meaning: meaning || `Reserved / unsupported PROVIDE LOCAL INFORMATION mode ${formatQualifierHex(qualifier)}`,
     category: meaning ? "Terminal information request" : "Reserved PLI qualifier value",
-    fields: meaning ? [field("Requested local information", meaning, { certainty: qualifier <= 0x10 ? "confirmed" : "possible" })] : [],
+    fields: [],
     warnings: meaning ? [] : [`PROVIDE LOCAL INFORMATION qualifier ${formatQualifierHex(qualifier)} is reserved or not yet mapped.`],
   };
 }
@@ -407,9 +430,7 @@ function decodePlayToneQualifier(qualifier) {
   return {
     meaning: bitState(qualifier, 1) ? "Vibrate alert with the tone, if available" : "Vibrate alert use is up to the terminal",
     category: "Tone playback behavior",
-    fields: [
-      field("Vibrate behavior", bitState(qualifier, 1) ? "vibrate with tone if available" : "terminal decides whether to vibrate", { certainty: "confirmed" }),
-    ],
+    fields: [],
     warnings: warnReservedBits(qualifier, 0x01, "PLAY TONE qualifier has RFU bits 2-8 set."),
   };
 }
@@ -423,7 +444,7 @@ function decodeLaunchBrowserQualifier(qualifier) {
   return {
     meaning: modes[qualifier] || `Reserved / not used LAUNCH BROWSER mode ${formatQualifierHex(qualifier)}`,
     category: "Browser launch policy",
-    fields: modes[qualifier] ? [field("Browser launch mode", modes[qualifier], { certainty: "confirmed" })] : [],
+    fields: [],
     warnings: modes[qualifier] ? [] : [`LAUNCH BROWSER qualifier ${formatQualifierHex(qualifier)} is reserved or marked as not used.`],
   };
 }
@@ -440,7 +461,7 @@ function decodeSetUpCallQualifier(qualifier) {
   return {
     meaning: modes[qualifier] || `Reserved / unsupported SET UP CALL mode ${formatQualifierHex(qualifier)}`,
     category: "Call setup policy",
-    fields: modes[qualifier] ? [field("Call setup mode", modes[qualifier], { certainty: "confirmed" })] : [],
+    fields: [],
     warnings: modes[qualifier] ? [] : [`SET UP CALL qualifier ${formatQualifierHex(qualifier)} is reserved.`],
   };
 }
@@ -449,9 +470,7 @@ function decodeSendShortMessageQualifier(qualifier) {
   return {
     meaning: bitState(qualifier, 1) ? "SMS packing by the terminal required" : "Packing not required",
     category: "SMS payload handling",
-    fields: [
-      field("SMS packing requirement", bitState(qualifier, 1) ? "terminal shall pack SMS" : "packing not required", { certainty: "confirmed" }),
-    ],
+    fields: [],
     warnings: warnReservedBits(qualifier, 0x01, "SEND SHORT MESSAGE qualifier has RFU bits 2-8 set."),
   };
 }
@@ -460,12 +479,17 @@ function decodeRfuQualifier(commandName, qualifier) {
   return {
     meaning: qualifier === 0x00 ? "No qualifier semantics defined" : `${commandName} qualifier should normally be 0x00 (RFU).`,
     category: "Qualifier not used by this command",
-    fields: [
-      field(`${commandName} qualifier meaning`, qualifier === 0x00 ? "RFU byte correctly set to 0" : "Non-zero qualifier in RFU field", {
-        certainty: qualifier === 0x00 ? "confirmed" : "possible",
-      }),
-    ],
+    fields: [],
     warnings: qualifier === 0x00 ? [] : [`${commandName} qualifier is RFU and should normally be 0x00.`],
+  };
+}
+
+function decodeLsiCommandQualifier(qualifier) {
+  return {
+    meaning: "unknown / not decoded yet",
+    category: "LSI command qualifier semantics not yet confirmed",
+    fields: [],
+    warnings: qualifier === 0x00 ? [] : [`LSI Command qualifier ${formatQualifierHex(qualifier)} is recognized structurally but not yet semantically decoded.`],
   };
 }
 
@@ -505,10 +529,12 @@ function decodeProactiveCommandQualifier(typeOfCommand, qualifier) {
       return decodeReceiveDataQualifier(qualifier);
     case 0x43:
       return decodeSendDataQualifier(qualifier);
+    case 0x79:
+      return decodeLsiCommandQualifier(qualifier);
     default:
       return {
-        meaning: `No semantic qualifier decoder yet for command type ${formatQualifierHex(typeOfCommand)}`,
-        category: "Qualifier semantics not yet expanded",
+        meaning: "unknown / command-type-specific qualifier semantics unavailable",
+        category: "Qualifier semantics unavailable for this command type in the loaded CAT table",
         fields: [],
         warnings: [],
       };
@@ -521,23 +547,40 @@ function decodeCommandDetails(item) {
   }
 
   const [commandNumber, typeOfCommand, commandQualifier] = item.valueBytes;
-  const proactiveCommandType = proactiveCommandTypes[typeOfCommand] || `0x${typeOfCommand.toString(16).toUpperCase().padStart(2, "0")}`;
+  const commandEntry = proactiveCommandCatalog[typeOfCommand] || null;
+  const proactiveCommandTypeName = commandEntry?.name || formatCommandTypeHex(typeOfCommand);
+  const proactiveCommandTypeDisplay = formatProactiveCommandTypeDisplay(typeOfCommand, proactiveCommandTypeName);
   const qualifierDecode = decodeProactiveCommandQualifier(typeOfCommand, commandQualifier);
   const qualifierReference = proactiveQualifierReferences[typeOfCommand] || "ETSI TS 102 223 clause 8.6 command qualifier coding";
+  const commandTypeStatus = commandEntry
+    ? null
+    : `Command type ${formatCommandTypeHex(typeOfCommand)} is not present in the currently loaded standard table. Please verify ETSI TS 102 223 version coverage.`;
   return {
     fields: [
       field("Command details TLV", `${item.tlvSpacedHex} (${item.tlvBytes.length} byte(s))`),
       field("Command details value", `${item.valueHex} (${item.length} byte(s))`),
       field("Command number", commandNumber),
-      field("Proactive command type", proactiveCommandType, {
-        certainty: proactiveCommandTypes[typeOfCommand] ? "confirmed" : "possible",
+      field("Proactive command type", proactiveCommandTypeDisplay, {
+        certainty: commandEntry ? "confirmed" : "possible",
       }),
       field("Command qualifier", formatQualifierHex(commandQualifier)),
       field("Command qualifier meaning", qualifierDecode.meaning, {
-        certainty: qualifierDecode.meaning.startsWith("No semantic") || qualifierDecode.meaning.startsWith("Reserved") ? "possible" : "confirmed",
+        certainty:
+          qualifierDecode.meaning === "unknown / not decoded yet" ||
+          qualifierDecode.meaning === "unknown / command-type-specific qualifier semantics unavailable" ||
+          qualifierDecode.meaning.startsWith("Reserved")
+            ? "possible"
+            : "confirmed",
       }),
-      field("Qualifier behavior category", qualifierDecode.category, {
-        certainty: qualifierDecode.category === "Qualifier semantics not yet expanded" ? "possible" : "confirmed",
+      ...(commandTypeStatus
+        ? [
+            field("Command type status", commandTypeStatus, {
+              certainty: "possible",
+            }),
+          ]
+        : []),
+      field("Standard table", getBaselineLabel("etsi102223Cat"), {
+        certainty: "confirmed",
       }),
       field("Standard reference", qualifierReference, {
         certainty: "possible",
@@ -547,11 +590,14 @@ function decodeCommandDetails(item) {
     warnings: qualifierDecode.warnings,
     summary: {
       commandNumber,
-      proactiveCommandType,
+      proactiveCommandType: proactiveCommandTypeDisplay,
+      proactiveCommandTypeName,
+      proactiveCommandTypeByte: formatCommandTypeHex(typeOfCommand),
       commandQualifier,
       commandQualifierMeaning: qualifierDecode.meaning,
-      commandQualifierCategory: qualifierDecode.category,
       commandQualifierReference: qualifierReference,
+      proactiveCommandTableVersion: getBaselineLabel("etsi102223Cat"),
+      commandTypeStatus: commandTypeStatus || "recognized in loaded CAT table",
     },
   };
 }

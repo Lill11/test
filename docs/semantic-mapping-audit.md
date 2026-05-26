@@ -22,6 +22,15 @@ Priority policy:
 | REFRESH qualifier `0x08` | Steering of Roaming for I-WLAN | Same | ETSI TS 102 223; Wireshark `packet-etsi_card_app_toolkit.c` | confirmed | yes |
 | REFRESH qualifier `0x09` | eUICC Profile State Change | Same | ETSI TS 102 223 release 14+ REFRESH qualifier table; Wireshark `packet-etsi_card_app_toolkit.c` | confirmed | yes |
 | REFRESH qualifier `0x0A` | Application Update | Same | ETSI TS 102 223 release 14+ REFRESH qualifier table; Wireshark `packet-etsi_card_app_toolkit.c` | confirmed | yes |
+| Proactive command type `0x34` | RUN AT COMMAND | Same | Wireshark `packet-etsi_card_app_toolkit.c` proactive command table; ETSI TS 102 223 proactive command list | confirmed | indirectly covered by command table audit |
+| Proactive command type `0x35` | LANGUAGE NOTIFICATION | Same | Wireshark `packet-etsi_card_app_toolkit.c` proactive command table; ETSI TS 102 223 proactive command list | confirmed | indirectly covered by command table audit |
+| Proactive command type `0x50` | SET FRAMES | Same | Wireshark `packet-etsi_card_app_toolkit.c` proactive command table; ETSI TS 102 223 proactive command list | confirmed | indirectly covered by command table audit |
+| Proactive command type `0x51` | GET FRAMES STATUS | Same | Wireshark `packet-etsi_card_app_toolkit.c` proactive command table; ETSI TS 102 223 proactive command list | confirmed | indirectly covered by command table audit |
+| Proactive command type `0x70` | ACTIVATE | Same | Wireshark `packet-etsi_card_app_toolkit.c` proactive command table; ETSI TS 102 223 proactive command list | confirmed | indirectly covered by command table audit |
+| Proactive command type `0x71` | CONTACTLESS STATE CHANGED | Same | Wireshark `packet-etsi_card_app_toolkit.c` proactive command table; ETSI TS 102 223 proactive command list | confirmed | yes |
+| Proactive command type `0x72` | COMMAND CONTAINER | Same | Wireshark `packet-etsi_card_app_toolkit.c` proactive command table; ETSI TS 102 223 proactive command list | confirmed | indirectly covered by command table audit |
+| Proactive command type `0x73` | ENCAPSULATED SESSION CONTROL | Same | Wireshark `packet-etsi_card_app_toolkit.c` proactive command table; ETSI TS 102 223 proactive command list | confirmed | indirectly covered by command table audit |
+| Proactive command type `0x79` | LSI Command / Manage LSI | Same | ETSI TS 102 223 Release 17 LSI COMMAND references; Wireshark UICC `lsi_proactive_session_request` / `lsi_uicc_platform_reset` fields | confirmed | yes |
 | Device identities `81/82/83` | `UICC` / `Terminal` / `Network` | Same | ETSI TS 102 223 device identities coding; Wireshark `packet-etsi_card_app_toolkit.c` | confirmed | covered by existing proactive/FETCH tests |
 | Result TLV general result `0x00..0x39` subset | Existing textual result labels | Same for currently implemented subset | ETSI TS 102 223 / 3GPP TS 31.111 result code tables; Wireshark `packet-etsi_card_app_toolkit.c` | confirmed | covered by existing TERMINAL RESPONSE tests |
 | SELECT response top-level templates `62/64/6F` | `FCP template` / `FMD template` / `FCI template` | Same | ISO/IEC 7816-4 file selection response templates; Wireshark `packet-gsm_sim.c` | confirmed | yes |
@@ -44,6 +53,7 @@ Priority policy:
 | --- | --- | --- | --- | --- | --- |
 | OPEN CHANNEL qualifier bit semantics beyond bits `1..4` | RFU warning only | Needs bearer-specific validation before extending | ETSI TS 102 223 OPEN CHANNEL qualifier tables; Wireshark comparison still incomplete | uncertain | yes for current confirmed subset |
 | CLOSE CHANNEL qualifier bit `1` | Shown as possible mode-specific hint | Context-dependent between packet-data reuse and UICC server mode | ETSI TS 102 223 release-dependent wording; Wireshark comparison still incomplete | uncertain | no |
+| LSI Command / Manage LSI qualifier values | `unknown / not decoded yet` | Needs clause-level qualifier confirmation before semantic decoding | ETSI TS 102 223 Release 17 LSI COMMAND / related eUICC LSI procedures | uncertain | yes |
 | SEND DATA / RECEIVE DATA qualifier semantics beyond current bit subset | Minimal semantics + RFU warning | Needs full standards table audit | ETSI TS 102 223 | uncertain | partial |
 | DISPLAY TEXT / GET INPUT / GET INKEY semantic labels | Current implementation kept, but not fully re-audited clause-by-clause yet | Needs clause-level table validation | ETSI TS 102 223; Wireshark comparison pending | uncertain | yes, but audit still incomplete |
 | TERMINAL PROFILE capability bit naming | Current capability hints | Needs bit-by-bit audit against standard tables | ETSI TS 102 223 terminal profile tables; Wireshark `packet-etsi_card_app_toolkit.c` | uncertain | partial |
@@ -61,6 +71,8 @@ When a semantic mapping is not confirmed:
 ## This pass implemented
 
 - fixed REFRESH qualifier `0x08`, `0x09`, and added `0x0A`
+- added missing confirmed proactive command types from ETSI/Wireshark such as `0x34`, `0x35`, `0x50`, `0x51`, `0x70`, `0x71`, `0x72`, `0x73`
+- added proactive command type `0x79` as `LSI Command / Manage LSI`
 - added code comments pointing to the standards/Wireshark source family for core semantic tables
 - added golden regression coverage for every REFRESH qualifier from `0x00` through `0x0A`
 - added a FETCH response regression case for REFRESH `0x09`

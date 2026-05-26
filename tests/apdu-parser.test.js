@@ -72,7 +72,7 @@ test("decodes TERMINAL RESPONSE TLVs and proactive command hints", () => {
 
   assert.equal(result.commandName, "TERMINAL RESPONSE");
   assert.equal(result.layer, "ETSI TS 102 223 / 3GPP TS 31.111 CAT/USAT layer");
-  assert.equal(result.decodedFields.proactiveCommandType, "OPEN CHANNEL");
+  assert.equal(result.decodedFields.proactiveCommandType, "0x40 — OPEN CHANNEL");
   const tlvValues = result.sections.flatMap((section) => section.fields.map((currentField) => `${currentField.label}:${currentField.value}`));
   assert.ok(tlvValues.some((value) => value.includes("Result TLV:83 01 00")));
   assert.ok(tlvValues.some((value) => value.includes("Device identities TLV:82 02 82 81")));
@@ -113,10 +113,11 @@ test("decodes FETCH response proactive command payloads and status words", () =>
   assert.equal(result.kind, "response-apdu");
   assert.equal(result.commandName, "FETCH proactive response");
   assert.equal(result.decodedFields.statusWord, "9000");
-  assert.equal(result.decodedFields.proactiveCommandType, "POLL INTERVAL");
+  assert.equal(result.decodedFields.proactiveCommandType, "0x03 — POLL INTERVAL");
   assert.equal(result.decodedFields.commandNumber, 1);
   assert.equal(result.decodedFields.durationUnit, "seconds");
   assert.equal(result.decodedFields.durationInterval, 30);
+  assert.equal(result.warningDetails.length, 0);
 });
 
 test("splits response data from common non-success status words", () => {
@@ -133,7 +134,7 @@ test("decodes proactive command templates without APDU wrapper", () => {
 
   assert.equal(result.kind, "payload");
   assert.equal(result.commandName, "Proactive command template");
-  assert.equal(result.decodedFields.proactiveCommandType, "POLL INTERVAL");
+  assert.equal(result.decodedFields.proactiveCommandType, "0x03 — POLL INTERVAL");
 });
 
 test("decodes REFRESH command qualifier semantics from 0x00 to 0x0A", () => {
@@ -156,11 +157,12 @@ test("decodes REFRESH command qualifier semantics from 0x00 to 0x0A", () => {
     const result = parseApduLine(`D00981030101${hexQualifier}82028182`, 12);
 
     assert.equal(result.kind, "payload");
-    assert.equal(result.decodedFields.proactiveCommandType, "REFRESH");
+    assert.equal(result.decodedFields.proactiveCommandType, "0x01 — REFRESH");
     assert.equal(result.decodedFields.commandQualifier, qualifier);
     assert.equal(result.decodedFields.commandQualifierMeaning, expectedMeaning);
     const values = result.sections.flatMap((section) => section.fields.map((currentField) => `${currentField.label}:${currentField.value}`));
-    assert.ok(values.some((value) => value.includes(`REFRESH mode:${expectedMeaning}`)));
+    assert.ok(!values.some((value) => value.includes(`REFRESH mode:${expectedMeaning}`)));
+    assert.ok(!values.some((value) => value.includes("Qualifier behavior category:")));
   }
 });
 
@@ -169,25 +171,68 @@ test("decodes FETCH response with REFRESH 0x09 as eUICC Profile State Change", (
 
   assert.equal(result.kind, "response-apdu");
   assert.equal(result.commandName, "FETCH proactive response");
-  assert.equal(result.decodedFields.proactiveCommandType, "REFRESH");
+  assert.equal(result.decodedFields.proactiveCommandType, "0x01 — REFRESH");
+  assert.equal(result.decodedFields.proactiveCommandTypeName, "REFRESH");
+  assert.equal(result.decodedFields.proactiveCommandTypeByte, "0x01");
   assert.equal(result.decodedFields.commandQualifierMeaning, "eUICC Profile State Change");
   const values = result.sections.flatMap((section) => section.fields.map((currentField) => `${currentField.label}:${currentField.value}`));
-  assert.ok(values.some((value) => value.includes("REFRESH behavior category:eUICC profile state change / profile lifecycle notification")));
+  assert.ok(!values.some((value) => value.includes("REFRESH behavior category:")));
+  assert.ok(!values.some((value) => value.includes("Qualifier behavior category:")));
+});
+
+test("decodes proactive command type 0x79 as LSI Command / Manage LSI with conservative qualifier wording", () => {
+  const result = parseApduLine("D0 09 81 03 01 79 01 82 02 81 82", 13);
+
+  assert.equal(result.kind, "payload");
+  assert.equal(result.commandName, "Proactive command template");
+  assert.equal(result.decodedFields.proactiveCommandType, "0x79 — LSI Command / Manage LSI");
+  assert.equal(result.decodedFields.proactiveCommandTypeName, "LSI Command / Manage LSI");
+  assert.equal(result.decodedFields.proactiveCommandTypeByte, "0x79");
+  assert.equal(result.decodedFields.commandQualifier, 0x01);
+  assert.equal(result.decodedFields.commandQualifierMeaning, "unknown / not decoded yet");
+  assert.match(result.decodedFields.proactiveCommandTableVersion, /ETSI TS 102 223 V17\.3\.0/i);
+  const values = result.sections.flatMap((section) => section.fields.map((currentField) => `${currentField.label}:${currentField.value}`));
+  assert.ok(values.some((value) => value.includes("Proactive command type:0x79 — LSI Command / Manage LSI")));
+  assert.ok(!values.some((value) => value.includes("Command type byte:0x79")));
+  assert.ok(!values.some((value) => value.includes("Command type name:LSI Command / Manage LSI")));
+  assert.ok(!values.some((value) => value.includes("LSI command qualifier status:")));
+});
+
+test("decodes proactive command type 0x71 as CONTACTLESS STATE CHANGED", () => {
+  const result = parseApduLine("D0 09 81 03 01 71 01 82 02 81 82", 14);
+
+  assert.equal(result.kind, "payload");
+  assert.equal(result.decodedFields.proactiveCommandType, "0x71 — CONTACTLESS STATE CHANGED");
+  assert.equal(result.decodedFields.proactiveCommandTypeName, "CONTACTLESS STATE CHANGED");
+  assert.equal(result.decodedFields.proactiveCommandTypeByte, "0x71");
+  assert.equal(result.decodedFields.commandQualifierMeaning, "unknown / command-type-specific qualifier semantics unavailable");
+  assert.equal(result.decodedFields.commandTypeStatus, "recognized in loaded CAT table");
+});
+
+test("uses standards-coverage wording for unknown proactive command types", () => {
+  const result = parseApduLine("D0098103017A0182028182", 15);
+
+  assert.equal(result.kind, "payload");
+  assert.equal(result.decodedFields.proactiveCommandType, "0x7A — 0x7A");
+  assert.equal(result.decodedFields.proactiveCommandTypeByte, "0x7A");
+  assert.equal(result.decodedFields.proactiveCommandTypeName, "0x7A");
+  assert.equal(result.decodedFields.commandQualifierMeaning, "unknown / command-type-specific qualifier semantics unavailable");
+  assert.match(result.decodedFields.commandTypeStatus, /not present in the currently loaded standard table.*verify ETSI TS 102 223 version coverage/i);
 });
 
 test("decodes DISPLAY TEXT command qualifier semantics", () => {
-  const result = parseApduLine("D009810301218182028102", 13);
+  const result = parseApduLine("D009810301218182028102", 16);
 
   assert.equal(result.kind, "payload");
-  assert.equal(result.decodedFields.proactiveCommandType, "DISPLAY TEXT");
+  assert.equal(result.decodedFields.proactiveCommandType, "0x21 — DISPLAY TEXT");
   assert.match(result.decodedFields.commandQualifierMeaning, /High priority, wait for user to clear message/i);
 });
 
 test("decodes OPEN CHANNEL command qualifier bitfields", () => {
-  const result = parseApduLine("D009810301400782028182", 14);
+  const result = parseApduLine("D009810301400782028182", 17);
 
   assert.equal(result.kind, "payload");
-  assert.equal(result.decodedFields.proactiveCommandType, "OPEN CHANNEL");
+  assert.equal(result.decodedFields.proactiveCommandType, "0x40 — OPEN CHANNEL");
   assert.match(result.decodedFields.commandQualifierMeaning, /Immediate link establishment in background mode/i);
   const values = result.sections.flatMap((section) => section.fields.map((currentField) => `${currentField.label}:${currentField.value}`));
   assert.ok(values.some((value) => value.includes("Automatic reconnection:requested")));
@@ -195,12 +240,12 @@ test("decodes OPEN CHANNEL command qualifier bitfields", () => {
 });
 
 test("decodes GET INPUT and PROVIDE LOCAL INFORMATION qualifier semantics", () => {
-  const getInput = parseApduLine("D009810301238782028102", 15);
-  const pli = parseApduLine("D009810301260382028182", 16);
+  const getInput = parseApduLine("D009810301238782028102", 18);
+  const pli = parseApduLine("D009810301260382028182", 19);
 
-  assert.equal(getInput.decodedFields.proactiveCommandType, "GET INPUT");
+  assert.equal(getInput.decodedFields.proactiveCommandType, "0x23 — GET INPUT");
   assert.match(getInput.decodedFields.commandQualifierMeaning, /Alphabet input, UCS2 alphabet, hidden entry, unpacked format, help available/i);
-  assert.equal(pli.decodedFields.proactiveCommandType, "PROVIDE LOCAL INFORMATION");
+  assert.equal(pli.decodedFields.proactiveCommandType, "0x26 — PROVIDE LOCAL INFORMATION");
   assert.match(pli.decodedFields.commandQualifierMeaning, /Date, time and time zone/i);
 });
 

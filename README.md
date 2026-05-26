@@ -66,6 +66,31 @@ The CAT layer also decodes common proactive command types carried inside CAT TLV
 - `CLOSE CHANNEL`
 - `RECEIVE DATA`
 - `SEND DATA`
+- `LSI Command / Manage LSI`
+
+## Standards baseline
+
+The analyzer now tracks an explicit standards baseline in [src/standards-baseline.js](C:/Users/junli/Documents/apdus/src/standards-baseline.js).
+
+Current baseline targets:
+
+- `ETSI TS 102 221 V18.3.0 (2025-10)` for UICC-terminal interface decoding
+- `ETSI TS 102 223 V17.3.0 (Release 17 baseline)` for CAT / USAT proactive command types and qualifiers
+- `3GPP TS 31.111 V17.14.0 (2025-06)` for matching Release 17 USAT procedure wording
+- `ISO/IEC 7816-4` edition-neutral APDU / FCP / FCI / FMD structure baseline
+- `GlobalPlatform Card Specification`
+  - current implementation baseline: `v2.3.1`
+  - latest public spec observed: `v2.4`
+
+For CAT command debugging, the UI now prefers compact protocol-analyzer style output:
+
+- proactive command type shown as `0xNN — NAME`
+- raw command byte and decoded command name shown together in the Command Details section
+- one compact CAT standard-table field instead of larger version-explainer cards
+
+Unknown proactive command types now intentionally use conservative wording:
+
+- `Command type 0xNN is not present in the currently loaded standard table. Please verify ETSI TS 102 223 version coverage.`
 
 ### 4. ETSI TS 102 226 RFM/RAM layer
 
@@ -204,11 +229,13 @@ The web UI is meant to feel closer to a protocol-analysis workspace than a form 
 This implementation was guided by public standards and public implementation references, especially:
 
 - [ISO/IEC 7816-4 summary references and command structure discussions](https://cardwerk.com/smart-card-standard-iso7816-4-section-6-basic-interindustry-commands/)
-- [ETSI TS 102 221](https://www.etsi.org/deliver/etsi_ts/102200_102299/102221/11.01.00_60/ts_102221v110100p.pdf)
-- [ETSI TS 102 223](https://www.etsi.org/deliver/etsi_ts/102200_102299/102223/11.02.00_60/ts_102223v110200p.pdf)
+- [ETSI TS 102 221 V18.3.0](https://www.etsi.org/deliver/etsi_ts/102200_102299/102221/18.03.00_60/ts_102221v180300p.pdf)
+- [ETSI TS 102 223 Release 17 directory](https://www.etsi.org/deliver/etsi_ts/102200_102299/102223/17.03.00_60/)
+- [ETSI TS 102 223 V17.2.0 public PDF nearby Release 17 baseline](https://www.etsi.org/deliver/etsi_ts/102200_102299/102223/17.02.00_60/ts_102223v170200p.pdf)
 - [ETSI TS 102 226](https://www.etsi.org/deliver/etsi_ts/102200_102299/102226/08.03.00_60/ts_102226v080300p.pdf)
-- [3GPP TS 31.111](https://www.etsi.org/deliver/etsi_ts/131100_131199/131111/03.08.00_60/ts_131111v030800p.pdf)
-- [GlobalPlatform Card Specification v2.3](https://globalplatform.org/wp-content/uploads/2018/03/GPC_Specification_v2.3.pdf)
+- [3GPP TS 31.111 V17.14.0](https://www.etsi.org/deliver/etsi_ts/131100_131199/131111/17.14.00_60/ts_131111v171400p.pdf)
+- [GlobalPlatform Card Specification v2.3.1](https://globalplatform.org/wp-content/uploads/2018/05/GPC_CardSpecification_v2.3.1_PublicRelease_CC.pdf)
+- [GlobalPlatform Card Specification landing page with v2.4 status](https://globalplatform.org/specs-library/card-specification/)
 - [3GPP TS 31.111 overview pages for proactive command structure](https://www.tech-invite.com/3m31/toc/tinv-3gpp-31-111_e.html)
 - [Wireshark ETSI CAT dissector tree](https://gitlab.com/wireshark/wireshark/-/tree/master/epan/dissectors)
 - [Wireshark `packet-gsm_sim.c`](https://github.com/wireshark/wireshark/blob/master/epan/dissectors/packet-gsm_sim.c)
